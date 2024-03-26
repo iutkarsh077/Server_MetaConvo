@@ -3,11 +3,18 @@ const ws = require("ws");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const app = express();
+const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const MessageModel = require('./models/messages.js');
-const DBConnect = require('./DBConnect.js');
+const MessageModel = require("./models/messages.js");
+const DBConnect = require("./DBConnect.js");
 app.use(express.json());
 app.use(cookieParser());
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
 
 const port = process.env.PORT || 5000;
 
@@ -37,22 +44,31 @@ wss.on("connection", (connection, req) => {
     }
   }
 
-  connection.on("message",async (message) => {
+  connection.on("message", async (message) => {
     const messageData = JSON.parse(message.toString());
     console.log(messageData);
     const { recipient, text } = messageData?.message;
     console.log(recipient, text);
     if (recipient && text) {
-        await DBConnect();
-        const messageDoc = await MessageModel.create({
-            sender: connection.userId,
-            recipient,
-            text
-        });
-        console.log(messageDoc);
+      await DBConnect();
+      const messageDoc = await MessageModel.create({
+        sender: connection.userId,
+        recipient,
+        text,
+      });
+      console.log(messageDoc);
       [...wss.clients]
-        .filter(c => c.userId === recipient)
-        .forEach(c => c.send(JSON.stringify({ _id: messageDoc._id, text, sender: connection.userId, recipient })));
+        .filter((c) => c.userId === recipient)
+        .forEach((c) =>
+          c.send(
+            JSON.stringify({
+              _id: messageDoc._id,
+              text,
+              sender: connection.userId,
+              recipient,
+            })
+          )
+        );
     }
   });
 
